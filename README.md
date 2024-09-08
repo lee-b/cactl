@@ -2,15 +2,14 @@
 
 ==== WIP ===
 
-A simple command line tool to create and control a local certificate authority, held in local files. No heavyweight CA webserver deployments, no weird error-prone openssl commands, just a simple tool to create and manage keys and certificates for your systems.
-
-This works at a high level. Instead of creating certs, you define entities. Then you export the necessary configs for those entities. At that point, the necessary certs are created, if they don't already exist. If they do exist, and expiry is within a certain amount of time, they are renewed automatically.
+A simple command line certificate authority tool.  This works at a very high level. Instead of creating keys and CSRs and certs, you define entities (root ca, server, client). Then you export the necessary configs for those entities, for whatever you need a config for (nginx, your web browser, your VPN client, etc.). At that point, the necessary certs are created automatically if they don't already exist, and you get a directory with the certs, keys, config files, and a README (or whatever suits the target system you're trying to configure).  Simples.
 
 This gives you simple, declarative idempotent ops, regardless of if/when a cert has already been generated, when it was generated and so on.
 
-We try to "do the right thing"(tm) as far as possible, so that you don't need to worry about stuff like ciphers, key sizes, etc.  The principle we're following is secure by default, without getting in your way.
+This tries to "do the right thing"(tm) as far as possible (choosing appropirate expiry times and key lengths for CA's vs. clients, for example), so that you don't need to worry about stuff like ciphers, key sizes, etc.
 
-This is along the lines of easyrsa and cfssl, but much higher level, lower cognitive load, and simpler to get right.
+The principle we're following is secure by default, too simple to get it wrong, and making it so quick and easy so that you won't just avoid doing it at all.
+
 
 ## Quickstart Example
 
