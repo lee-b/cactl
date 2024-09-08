@@ -1,6 +1,6 @@
 # cactl
 
-==== WIP ===
+==== WIP ====
 
 A simple command line certificate authority tool.  This works at a very high level. Instead of creating keys and CSRs and certs, you define entities (root ca, server, client). Then you export the necessary configs for those entities, for whatever you need a config for (nginx, your web browser, your VPN client, etc.). At that point, the necessary certs are created automatically if they don't already exist, and you get a directory with the certs, keys, config files, and a README (or whatever suits the target system you're trying to configure).  Simples.
 
