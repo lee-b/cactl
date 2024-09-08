@@ -15,14 +15,11 @@ class NginxExporter(Exporter):
         if not entity:
             raise ValueError(f"Entity '{entity_name}' not found")
 
-        cert_chain = db.get_entity_certificate_chain(entity_name)
+        cert_chain = db.get_entity_certificate_chain(entity_name, purposes={CertPurpose.WEB_SERVER})
         if not cert_chain:
-            raise ValueError(f"No certificate chain found for '{entity_name}'")
+            raise ValueError(f"No valid certificate chain found for '{entity_name}'")
 
         server_cert = cert_chain[0]
-        if CertPurpose.WEB_SERVER not in server_cert.purposes:
-            raise ValueError(f"Certificate for '{entity_name}' is not a web server certificate")
-
         key = next((key for key in entity.keys if key.id == server_cert.key_id), None)
         if not key:
             raise ValueError(f"Private key not found for certificate '{server_cert.id}'")
