@@ -3,7 +3,7 @@ from typing import List
 
 from ...exporter import Exporter
 from ...db import DB
-from ...crypto import Cert, CertPurpose
+from ...crypto import Cert, CertPurpose, Key
 
 
 class OpenVPNAndroidClientExporter(Exporter):
@@ -26,16 +26,31 @@ class OpenVPNAndroidClientExporter(Exporter):
 
         ca_cert = cert_chain[-1]  # The last certificate in the chain is the root CA
 
-        config = self._generate_openvpn_config(entity_name, client_cert, client_key, ca_cert)
+        # Create a directory for the OpenVPN Android client files
+        openvpn_dir = target_path / f"{entity_name}_openvpn_android_client"
+        openvpn_dir.mkdir(parents=True, exist_ok=True)
 
-        config_path = target_path / f"{entity_name}_openvpn_android.ovpn"
-        with open(config_path, "w") as f:
-            f.write(config)
+        # Write the certificate and key files
+        self._write_file(openvpn_dir / "client.crt", self._read_file_content(client_cert.path))
+        self._write_file(openvpn_dir / "client.key", self._read_file_content(client_key.path))
+        self._write_file(openvpn_dir / "ca.crt", self._read_file_content(ca_cert.path))
 
-        print(f"OpenVPN Android client configuration exported to: {config_path}")
+        # Generate and write the TLS auth key
+        tls_auth_key = self._generate_tls_auth_key()
+        self._write_file(openvpn_dir / "ta.key", tls_auth_key)
 
-    def _generate_openvpn_config(self, client_name: str, client_cert: Cert, client_key: Path, ca_cert: Cert) -> str:
-        config = f"""client
+        config = self._generate_openvpn_config(entity_name)
+
+        config_path = openvpn_dir / f"{entity_name}_client.ovpn"
+        self._write_file(config_path, config)
+
+        print(f"OpenVPN Android client files exported to: {openvpn_dir}")
+        print(f"OpenVPN Android client configuration: {config_path}")
+
+    def _generate_openvpn_config(self, client_name: str) -> str:
+        config = f"""# OpenVPN Client Configuration for {client_name}
+
+client
 dev tun
 proto udp
 remote your-vpn-server.com 1194
@@ -48,25 +63,26 @@ cipher AES-256-GCM
 auth SHA256
 verb 3
 
-<ca>
-{self._read_file_content(ca_cert.path)}
-</ca>
+ca ca.crt
+cert client.crt
+key client.key
 
-<cert>
-{self._read_file_content(client_cert.path)}
-</cert>
+tls-auth ta.key 1
 
-<key>
-{self._read_file_content(client_key.path)}
-</key>
-
-<tls-auth>
-# Insert your preshared key here
-</tls-auth>
-key-direction 1
+# Uncomment this line if you want to enable compression (not recommended for security reasons)
+# comp-lzo
 """
         return config
 
     def _read_file_content(self, file_path: Path) -> str:
         with open(file_path, "r") as f:
             return f.read().strip()
+
+    def _write_file(self, file_path: Path, content: str):
+        with open(file_path, "w") as f:
+            f.write(content)
+
+    def _generate_tls_auth_key(self) -> str:
+        # This is a placeholder. In a real implementation, you would use a cryptographic
+        # library or call an external command to generate a TLS auth key.
+        return "# Placeholder for TLS auth key\n# Generate with: openvpn --genkey --secret ta.key"
