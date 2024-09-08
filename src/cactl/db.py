@@ -1,6 +1,5 @@
 import json
 import logging
-from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -10,17 +9,6 @@ from pydantic import BaseModel, Field
 from .crypto import CertPurpose, FileFormat
 
 logger = logging.getLogger(__name__)
-
-class DBKey(str, Enum):
-    DB_VERSION = "db_version"
-    ROOT_CAS = "root_cas"
-    INTERMEDIATE_CAS = "intermediate_cas"
-    SERVERS = "servers"
-    CLIENTS = "clients"
-    EMAILS = "emails"
-    ENTITY_TUPLES = "entity_tuples"
-    KEYS = "keys"
-    CERTS = "certs"
 
 class Key(BaseModel):
     id: str
@@ -60,15 +48,15 @@ class DB:
             logger.info(f"Loaded database from {self._db_file}")
         else:
             self._data = {
-                DBKey.DB_VERSION: "1.0",
-                DBKey.ROOT_CAS: [],
-                DBKey.INTERMEDIATE_CAS: [],
-                DBKey.SERVERS: [],
-                DBKey.CLIENTS: [],
-                DBKey.EMAILS: [],
-                DBKey.ENTITY_TUPLES: {},
-                DBKey.KEYS: {},
-                DBKey.CERTS: {},
+                "version": "1.0",
+                "root_cas": [],
+                "intermediate_cas": [],
+                "servers": [],
+                "clients": [],
+                "emails": [],
+                "entities": {},
+                "keys": {},
+                "certs": {},
             }
             self._save_db()
             logger.info(f"Initialized new database at {self._db_file}")
@@ -78,19 +66,19 @@ class DB:
             json.dump(self._data, f, indent=2, default=str)
 
     def get_CAs(self) -> List[str]:
-        return self._data[DBKey.ROOT_CAS]
+        return self._data["root_cas"]
 
     def get_intermediate_CAs(self) -> List[str]:
-        return self._data[DBKey.INTERMEDIATE_CAS]
+        return self._data["intermediate_cas"]
 
     def get_servers(self) -> List[str]:
-        return self._data[DBKey.SERVERS]
+        return self._data["servers"]
 
     def get_clients(self) -> List[str]:
-        return self._data[DBKey.CLIENTS]
+        return self._data["clients"]
 
     def get_emails(self) -> List[str]:
-        return self._data[DBKey.EMAILS]
+        return self._data["emails"]
 
     def get_entities(self) -> List[str]:
         return (
@@ -102,12 +90,12 @@ class DB:
         )
 
     def get_entity_certificate_chain(self, end_entity_id: str) -> List[Cert]:
-        entity_tuples = self._data[DBKey.ENTITY_TUPLES]
+        entities = self._data["entities"]
         chain = []
         current_entity_id = end_entity_id
 
         while current_entity_id:
-            entity_data = entity_tuples.get(current_entity_id)
+            entity_data = entities.get(current_entity_id)
             if not entity_data:
                 break
 
@@ -130,48 +118,48 @@ class DB:
         return None
 
     def get_entity_by_id(self, entity_id: str) -> Optional[Entity]:
-        entity_data = self._data[DBKey.ENTITY_TUPLES].get(entity_id)
+        entity_data = self._data["entities"].get(entity_id)
         if entity_data:
             return Entity.parse_obj(entity_data)
         return None
 
-    def add_entity(self, entity: Entity, entity_type: DBKey):
+    def add_entity(self, entity: Entity, entity_type: str):
         entity_id = entity.name
-        self._data[DBKey.ENTITY_TUPLES][entity_id] = entity.dict()
+        self._data["entities"][entity_id] = entity.dict()
         self._data[entity_type].append(entity_id)
         self._save_db()
 
     def add_CA(self, ca: Entity):
-        self.add_entity(ca, DBKey.ROOT_CAS)
+        self.add_entity(ca, "root_cas")
 
     def add_intermediate_CA(self, ca: Entity):
-        self.add_entity(ca, DBKey.INTERMEDIATE_CAS)
+        self.add_entity(ca, "intermediate_cas")
 
     def add_server(self, server: Entity):
-        self.add_entity(server, DBKey.SERVERS)
+        self.add_entity(server, "servers")
 
     def add_client(self, client: Entity):
-        self.add_entity(client, DBKey.CLIENTS)
+        self.add_entity(client, "clients")
 
     def add_email(self, email: Entity):
-        self.add_entity(email, DBKey.EMAILS)
+        self.add_entity(email, "emails")
 
     def add_key(self, key: Key):
-        self._data[DBKey.KEYS][key.id] = key.dict()
+        self._data["keys"][key.id] = key.dict()
         self._save_db()
 
     def get_key_by_id(self, key_id: str) -> Optional[Key]:
-        key_data = self._data[DBKey.KEYS].get(key_id)
+        key_data = self._data["keys"].get(key_id)
         if key_data:
             return Key.parse_obj(key_data)
         return None
 
     def add_cert(self, cert: Cert):
-        self._data[DBKey.CERTS][cert.id] = cert.dict()
+        self._data["certs"][cert.id] = cert.dict()
         self._save_db()
 
     def get_cert_by_id(self, cert_id: str) -> Optional[Cert]:
-        cert_data = self._data[DBKey.CERTS].get(cert_id)
+        cert_data = self._data["certs"].get(cert_id)
         if cert_data:
             return Cert.parse_obj(cert_data)
         return None
