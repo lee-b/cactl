@@ -5,6 +5,7 @@ import logging
 from enum import Enum, auto, unique
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict
+from datetime import datetime as DateTime
 
 from .crypto import Key, Cert, CertPurpose, FileFormat
 from .entity import EntityID, Entity, EntityChain
