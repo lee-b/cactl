@@ -1,12 +1,13 @@
 import json
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict
-from datetime import datetime
+from typing import List, Optional, Dict, Set
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel, Field
 
 from .crypto import CertPurpose, FileFormat, Key, Cert, CertRequest, Revocation
+from .backend import Backend
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,12 @@ class Entity(BaseModel):
 class DB:
     CURRENT_VERSION = "1.2"
 
-    def __init__(self, db_dir_path: Path):
+    def __init__(self, db_dir_path: Path, backend: Backend):
         self._path = db_dir_path
         self._path.mkdir(parents=True, exist_ok=True)
         self._db_file = self._path / "db.json"
         self._data: Dict = {}
+        self._backend = backend
         self._load_or_create_db()
 
     def _load_or_create_db(self):
@@ -110,7 +112,7 @@ class DB:
             + self.get_emails()
         )
 
-    def get_entity_certificate_chain(self, end_entity_id: str) -> List[Cert]:
+    def get_entity_certificate_chain(self, end_entity_id: str, purposes: Optional[Set[CertPurpose]] = None) -> List[Cert]:
         entities = self._data["entities"]
         chain = []
         current_entity_id = end_entity_id
@@ -121,8 +123,9 @@ class DB:
                 break
 
             entity = Entity.parse_obj(entity_data)
-            if entity.certs:
-                chain.append(entity.certs[0])  # Assuming the first cert is the main one
+            cert = self._get_or_create_cert(entity, purposes)
+            if cert:
+                chain.append(cert)
 
             if entity.can_sign:
                 current_entity_id = entity.parent_id
@@ -130,6 +133,43 @@ class DB:
                 break
 
         return list(reversed(chain))
+
+    def _get_or_create_cert(self, entity: Entity, purposes: Optional[Set[CertPurpose]]) -> Optional[Cert]:
+        if purposes:
+            existing_cert = next((cert for cert in entity.certs if purposes.issubset(cert.purposes)), None)
+            if existing_cert:
+                return existing_cert
+
+        # Create a new certificate if it doesn't exist
+        key = entity.keys[0] if entity.keys else self._create_key(entity)
+        cert_request = self._create_cert_request(entity, key, purposes)
+        signing_ca = self.get_default_signing_ca() if not entity.can_sign else entity
+        cert = self._backend.sign_request(cert_request, signing_ca.keys[0])
+        self.add_cert(cert, entity.name)
+        return cert
+
+    def _create_key(self, entity: Entity) -> Key:
+        key = self._backend.gen_key(entity.min_strength)
+        self.add_key(key, entity.name)
+        return key
+
+    def _create_cert_request(self, entity: Entity, key: Key, purposes: Optional[Set[CertPurpose]]) -> CertRequest:
+        if not purposes:
+            purposes = {CertPurpose.ROOT_CA} if entity.can_sign else {CertPurpose.WEB_SERVER}
+        
+        start_date = datetime.utcnow()
+        end_date = start_date + timedelta(days=365)  # Default to 1 year validity
+        
+        cert_request = CertRequest(
+            id=self._backend._generate_id(),
+            purposes=purposes,
+            start_date=start_date,
+            end_date=end_date,
+            file_format=key.file_format,
+            path=key.path.with_suffix(".csr")
+        )
+        self.add_cert_request(cert_request, entity.name)
+        return cert_request
 
     def get_default_signing_ca(self) -> Optional[Entity]:
         cas = self.get_CAs()
