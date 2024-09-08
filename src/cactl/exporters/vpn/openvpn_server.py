@@ -43,7 +43,7 @@ class OpenVPNServerExporter(Exporter):
         tls_auth_key = self._generate_tls_auth_key()
         self._write_file(openvpn_dir / "ta.key", tls_auth_key)
 
-        config = self._generate_openvpn_config(entity_name, openvpn_dir)
+        config = self._generate_openvpn_config(entity_name)
 
         config_path = openvpn_dir / f"{entity_name}_server.conf"
         self._write_file(config_path, config)
@@ -51,18 +51,18 @@ class OpenVPNServerExporter(Exporter):
         print(f"OpenVPN server files exported to: {openvpn_dir}")
         print(f"OpenVPN server configuration: {config_path}")
 
-    def _generate_openvpn_config(self, server_name: str, openvpn_dir: Path) -> str:
+    def _generate_openvpn_config(self, server_name: str) -> str:
         config = f"""# OpenVPN Server Configuration for {server_name}
 
 port 1194
 proto udp
 dev tun
 
-ca {openvpn_dir}/ca.crt
-cert {openvpn_dir}/server.crt
-key {openvpn_dir}/server.key
+ca ca.crt
+cert server.crt
+key server.key
 
-dh {openvpn_dir}/dh2048.pem
+dh dh2048.pem
 
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt
@@ -84,7 +84,7 @@ persist-tun
 status openvpn-status.log
 verb 3
 
-tls-auth {openvpn_dir}/ta.key 0
+tls-auth ta.key 0
 
 # Uncomment these lines if you want to enable client-to-client communication
 # client-to-client
