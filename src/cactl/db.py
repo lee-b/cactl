@@ -34,6 +34,8 @@ class Entity(BaseModel):
     parent_id: Optional[str] = None
 
 class DB:
+    CURRENT_VERSION = "1.0"
+
     def __init__(self, db_dir_path: Path):
         self._path = db_dir_path
         self._path.mkdir(parents=True, exist_ok=True)
@@ -45,10 +47,11 @@ class DB:
         if self._db_file.exists():
             with open(self._db_file, "r") as f:
                 self._data = json.load(f)
+            self._validate_version()
             logger.info(f"Loaded database from {self._db_file}")
         else:
             self._data = {
-                "version": "1.0",
+                "version": self.CURRENT_VERSION,
                 "root_cas": [],
                 "intermediate_cas": [],
                 "servers": [],
@@ -60,6 +63,11 @@ class DB:
             }
             self._save_db()
             logger.info(f"Initialized new database at {self._db_file}")
+
+    def _validate_version(self):
+        db_version = self._data.get("version")
+        if db_version != self.CURRENT_VERSION:
+            raise ValueError(f"Unsupported database version: {db_version}. Expected: {self.CURRENT_VERSION}")
 
     def _save_db(self):
         with open(self._db_file, "w") as f:
