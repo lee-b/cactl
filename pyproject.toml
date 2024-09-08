@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "cactl"
+version = "0.1.0"
+description = "A command-line tool for cactl"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "cactl", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+cactl = "cactl.__main__:main"
