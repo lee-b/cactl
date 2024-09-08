@@ -46,7 +46,6 @@ persist-tun
 remote-cert-tls server
 cipher AES-256-GCM
 auth SHA256
-key-direction 1
 verb 3
 
 <ca>
@@ -62,8 +61,9 @@ verb 3
 </key>
 
 <tls-auth>
-# Insert your tls-auth key here
+# Insert your preshared key here
 </tls-auth>
+key-direction 1
 """
         return config
 
