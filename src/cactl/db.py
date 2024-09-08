@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from .crypto import CertPurpose, FileFormat, Key, Cert, CertRequest
+from .crypto import CertPurpose, FileFormat, Key, Cert, CertRequest, Revocation
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +17,11 @@ class Entity(BaseModel):
     keys: List[Key] = Field(default_factory=list)
     certs: List[Cert] = Field(default_factory=list)
     cert_requests: List[CertRequest] = Field(default_factory=list)
+    revocations: List[Revocation] = Field(default_factory=list)
     parent_id: Optional[str] = None
 
 class DB:
-    CURRENT_VERSION = "1.1"
+    CURRENT_VERSION = "1.2"
 
     def __init__(self, db_dir_path: Path):
         self._path = db_dir_path
@@ -48,6 +49,7 @@ class DB:
                 "keys": {},
                 "certs": {},
                 "cert_requests": {},
+                "revocations": {},
             }
             self._save_db()
             logger.info(f"Initialized new database at {self._db_file}")
@@ -62,10 +64,13 @@ class DB:
             entity_data["keys"] = [self._data["keys"][key_id] for key_id in entity_data["key_ids"]]
             entity_data["certs"] = [self._data["certs"][cert_id] for cert_id in entity_data["cert_ids"]]
             entity_data["cert_requests"] = [self._data["cert_requests"][req_id] for req_id in entity_data.get("cert_request_ids", [])]
+            entity_data["revocations"] = [self._data["revocations"][rev_id] for rev_id in entity_data.get("revocation_ids", [])]
             del entity_data["key_ids"]
             del entity_data["cert_ids"]
             if "cert_request_ids" in entity_data:
                 del entity_data["cert_request_ids"]
+            if "revocation_ids" in entity_data:
+                del entity_data["revocation_ids"]
 
     def _save_db(self):
         save_data = self._data.copy()
@@ -73,9 +78,11 @@ class DB:
             entity_data["key_ids"] = [key.id for key in entity_data["keys"]]
             entity_data["cert_ids"] = [cert.id for cert in entity_data["certs"]]
             entity_data["cert_request_ids"] = [req.id for req in entity_data["cert_requests"]]
+            entity_data["revocation_ids"] = [rev.id for rev in entity_data["revocations"]]
             del entity_data["keys"]
             del entity_data["certs"]
             del entity_data["cert_requests"]
+            del entity_data["revocations"]
         with open(self._db_file, "w") as f:
             json.dump(save_data, f, indent=2, default=str)
 
@@ -197,4 +204,18 @@ class DB:
         cert_request_data = self._data["cert_requests"].get(cert_request_id)
         if cert_request_data:
             return CertRequest.parse_obj(cert_request_data)
+        return None
+
+    def add_revocation(self, revocation: Revocation, entity_id: str):
+        self._data["revocations"][revocation.id] = revocation.dict()
+        entity = self.get_entity_by_id(entity_id)
+        if entity:
+            entity.revocations.append(revocation)
+            self._data["entities"][entity_id] = entity.dict()
+        self._save_db()
+
+    def get_revocation_by_id(self, revocation_id: str) -> Optional[Revocation]:
+        revocation_data = self._data["revocations"].get(revocation_id)
+        if revocation_data:
+            return Revocation.parse_obj(revocation_data)
         return None

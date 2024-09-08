@@ -56,3 +56,10 @@ class Cert(BaseModel):
     purposes: Set[CertPurpose]
     start_date: DateTime
     end_date: DateTime
+
+
+class Revocation(BaseModel):
+    id: str
+    cert_id: str
+    revocation_date: DateTime
+    reason: str
