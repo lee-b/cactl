@@ -4,7 +4,7 @@ import shutil
 
 from ...exporter import Exporter
 from ...db import DB
-from ...crypto import Cert, CertPurpose, Key
+from ...crypto import Cert, CertPurpose, Key, Cipher
 
 
 class NginxExporter(Exporter):
@@ -40,9 +40,14 @@ class NginxExporter(Exporter):
         self._write_cert_chain(chain_file, cert_chain)
 
         # Generate and write the Nginx configuration
-        config = self._generate_nginx_config(entity_name, new_cert_path, new_key_path, chain_file)
+        config = self._generate_nginx_config(entity_name, new_cert_path, new_key_path, chain_file, key)
         config_path = nginx_dir / f"{entity_name}_nginx.conf"
         self._write_file(config_path, config)
+
+        # Generate a sample HTML file
+        html_content = f"<html><body><h1>Welcome to {entity_name}</h1></body></html>"
+        html_path = nginx_dir / "index.html"
+        self._write_file(html_path, html_content)
 
         print(f"Nginx configuration files exported to: {nginx_dir}")
         print(f"  Configuration file: {config_path}")
@@ -55,7 +60,8 @@ class NginxExporter(Exporter):
         print(f"2. Update your main Nginx configuration to include {config_path}")
         print("3. Restart Nginx to apply the changes.")
 
-    def _generate_nginx_config(self, server_name: str, cert_path: Path, key_path: Path, chain_path: Path) -> str:
+    def _generate_nginx_config(self, server_name: str, cert_path: Path, key_path: Path, chain_path: Path, key: Key) -> str:
+        ciphers = self._get_appropriate_ciphers(key)
         config = f"""
 server {{
     listen 443 ssl;
@@ -67,7 +73,7 @@ server {{
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_ciphers {ciphers};
 
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
@@ -99,6 +105,14 @@ server {{
 }}
 """
         return config
+
+    def _get_appropriate_ciphers(self, key: Key) -> str:
+        if key.length >= 4096:
+            return "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES256-GCM-SHA384"
+        elif key.length >= 2048:
+            return "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384"
+        else:
+            return "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-GCM-SHA256"
 
     def _write_file(self, file_path: Path, content: str):
         with open(file_path, "w") as f:
