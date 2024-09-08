@@ -55,6 +55,10 @@ class GenericBrowserExporter(Exporter):
         der_cert_file = browser_dir / f"{entity_name}_client_cert.der"
         self._generate_der_cert(client_cert.path, der_cert_file)
 
+        # Generate README.TXT file
+        readme_file = browser_dir / "README.TXT"
+        self._generate_readme(readme_file, entity_name, pkcs12_password)
+
         print(f"Browser-compatible files exported to: {browser_dir}")
         print(f"  Certificate chain (PEM): {chain_file}")
         print(f"  Private key (PEM): {key_file}")
@@ -63,8 +67,9 @@ class GenericBrowserExporter(Exporter):
         print(f"  PKCS#12 file: {pkcs12_file}")
         print(f"  PFX file: {pfx_file}")
         print(f"  PKCS#12/PFX password: {pkcs12_password}")
+        print(f"  README file: {readme_file}")
         
-        self._print_browser_instructions(browser_dir, entity_name)
+        print("\nPlease refer to the README.TXT file for detailed instructions on importing the client certificate.")
 
     def _write_cert_chain(self, output_file: Path, cert_chain):
         pem_content = ""
@@ -121,20 +126,49 @@ class GenericBrowserExporter(Exporter):
     def _generate_password(self, length=16):
         return ''.join(os.urandom(length).hex())
 
-    def _print_browser_instructions(self, browser_dir: Path, entity_name: str):
-        print("\nInstructions for importing the client certificate:")
-        print("\nFor Chrome, Firefox, and Safari:")
-        print(f"1. Import the PKCS#12 file: {entity_name}_client.p12")
-        print("2. When prompted, enter the password provided above.")
-        
-        print("\nFor Internet Explorer and Edge:")
-        print(f"1. Import the PFX file: {entity_name}_client.pfx")
-        print("2. When prompted, enter the password provided above.")
-        
-        print("\nFor manual import or troubleshooting:")
-        print(f"- Certificate file (PEM): {entity_name}_client_cert.pem")
-        print(f"- Certificate file (DER): {entity_name}_client_cert.der")
-        print(f"- Private key file: {entity_name}_private_key.pem")
-        print(f"- Certificate chain file: {entity_name}_cert_chain.pem")
-        
-        print("\nNote: The exact import process may vary depending on the browser version and operating system.")
+    def _generate_readme(self, readme_file: Path, entity_name: str, pkcs12_password: str):
+        content = f"""Client Certificate Import Instructions for {entity_name}
+
+This directory contains the following files:
+1. {entity_name}_client.p12 / {entity_name}_client.pfx: PKCS#12/PFX format certificate (includes private key and certificate chain)
+2. {entity_name}_client_cert.pem: Client certificate in PEM format
+3. {entity_name}_client_cert.der: Client certificate in DER format
+4. {entity_name}_private_key.pem: Private key in PEM format
+5. {entity_name}_cert_chain.pem: Certificate chain in PEM format
+
+PKCS#12/PFX Password: {pkcs12_password}
+
+Instructions for major browsers:
+
+1. Google Chrome:
+   - Go to Settings > Privacy and security > Security > Manage certificates
+   - Click on "Import" and select the {entity_name}_client.p12 file
+   - Enter the PKCS#12/PFX password when prompted
+
+2. Mozilla Firefox:
+   - Go to Options > Privacy & Security > Certificates > View Certificates
+   - Click on "Import" and select the {entity_name}_client.p12 file
+   - Enter the PKCS#12/PFX password when prompted
+
+3. Microsoft Edge:
+   - Go to Settings > Privacy, search, and services > Manage certificates
+   - Click on "Import" and select the {entity_name}_client.pfx file
+   - Enter the PKCS#12/PFX password when prompted
+
+4. Apple Safari:
+   - Double-click the {entity_name}_client.p12 file
+   - It will open Keychain Access. Enter your system password if prompted
+   - Enter the PKCS#12/PFX password when prompted
+
+5. Internet Explorer:
+   - Go to Internet Options > Content > Certificates
+   - Click on "Import" and select the {entity_name}_client.pfx file
+   - Enter the PKCS#12/PFX password when prompted
+
+For other browsers or manual import:
+- Use the individual PEM or DER files as required by your browser or system
+- The {entity_name}_cert_chain.pem file contains the full certificate chain, which may be needed for some import processes
+
+Note: The exact import process may vary depending on the browser version and operating system. If you encounter any issues, please consult your browser's documentation or contact your system administrator.
+"""
+        self._write_file(readme_file, content)
