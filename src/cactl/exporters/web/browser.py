@@ -1,8 +1,11 @@
 from pathlib import Path
+import subprocess
+import tempfile
 
 from ...exporter import Exporter
 from ...db import DB
 from ...crypto import CertPurpose, Key
+from ...entity import Entity
 
 
 class GenericBrowserExporter(Exporter):
@@ -35,7 +38,7 @@ class GenericBrowserExporter(Exporter):
         key_file = browser_dir / f"{entity_name}_private_key.pem"
         self._write_file(key_file, self._read_file_content(client_key.path))
 
-        # Write the PKCS#12 file (optional, for browsers that support it)
+        # Write the PKCS#12 file
         pkcs12_file = browser_dir / f"{entity_name}_client.p12"
         self._generate_pkcs12(client_cert, client_key, cert_chain, pkcs12_file)
 
@@ -58,16 +61,25 @@ class GenericBrowserExporter(Exporter):
         with open(file_path, "w") as f:
             f.write(content)
 
-    def _generate_pkcs12(self, client_cert, client_key, cert_chain, output_file: Path):
-        # This is a placeholder. In a real implementation, you would use a cryptographic
-        # library or call an external command to generate a PKCS#12 file.
-        placeholder_content = f"""
-# Placeholder for PKCS#12 file
-# This file should contain:
-# - Client certificate: {client_cert.path}
-# - Client private key: {client_key.path}
-# - Certificate chain: {', '.join(str(cert.path) for cert in cert_chain[1:])}
-#
-# Generate with: openssl pkcs12 -export -out {output_file.name} -inkey {client_key.path} -in {client_cert.path} -certfile chain.pem
-"""
-        self._write_file(output_file, placeholder_content.strip())
+    def _generate_pkcs12(self, client_cert, client_key: Key, cert_chain, output_file: Path):
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as temp_chain:
+            for cert in cert_chain[1:]:  # Exclude the client cert
+                temp_chain.write(self._read_file_content(cert.path) + '\n')
+            temp_chain_path = temp_chain.name
+
+        try:
+            password = "changeit"  # You might want to generate a random password or ask the user
+            cmd = [
+                "openssl", "pkcs12", "-export",
+                "-out", str(output_file),
+                "-inkey", str(client_key.path),
+                "-in", str(client_cert.path),
+                "-certfile", temp_chain_path,
+                "-password", f"pass:{password}"
+            ]
+            subprocess.run(cmd, check=True)
+            print(f"PKCS#12 file created successfully. Password: {password}")
+        except subprocess.CalledProcessError as e:
+            print(f"Error generating PKCS#12 file: {e}")
+        finally:
+            Path(temp_chain_path).unlink()  # Delete the temporary chain file
