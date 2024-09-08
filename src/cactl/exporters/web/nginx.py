@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import List
+import shutil
 
 from ...exporter import Exporter
 from ...db import DB
@@ -28,8 +29,14 @@ class NginxExporter(Exporter):
         nginx_dir = target_path / f"{entity_name}_nginx"
         nginx_dir.mkdir(parents=True, exist_ok=True)
 
+        # Copy the server certificate and key to the Nginx directory
+        new_cert_path = nginx_dir / f"{entity_name}_cert.pem"
+        new_key_path = nginx_dir / f"{entity_name}_key.pem"
+        shutil.copy(server_cert.path, new_cert_path)
+        shutil.copy(key.path, new_key_path)
+
         # Generate and write the Nginx configuration
-        config = self._generate_nginx_config(entity_name, server_cert, key, cert_chain)
+        config = self._generate_nginx_config(entity_name, new_cert_path, new_key_path, cert_chain)
         config_path = nginx_dir / f"{entity_name}_nginx.conf"
         self._write_file(config_path, config)
 
@@ -40,17 +47,17 @@ class NginxExporter(Exporter):
         print(f"Nginx configuration files exported to: {nginx_dir}")
         print(f"  Configuration file: {config_path}")
         print(f"  Certificate chain: {chain_file}")
-        print(f"  Server certificate: {server_cert.path}")
-        print(f"  Private key: {key.path}")
+        print(f"  Server certificate: {new_cert_path}")
+        print(f"  Private key: {new_key_path}")
 
-    def _generate_nginx_config(self, server_name: str, server_cert: Cert, key: Key, cert_chain: List[Cert]) -> str:
+    def _generate_nginx_config(self, server_name: str, cert_path: Path, key_path: Path, cert_chain: List[Cert]) -> str:
         config = f"""
 server {{
     listen 443 ssl;
     server_name {server_name};
 
-    ssl_certificate {server_cert.path};
-    ssl_certificate_key {key.path};
+    ssl_certificate {cert_path};
+    ssl_certificate_key {key_path};
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
