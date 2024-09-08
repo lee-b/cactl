@@ -8,7 +8,7 @@ This gives you simple, declarative idempotent ops, regardless of if/when a cert 
 
 This tries to "do the right thing"(tm) as far as possible (choosing appropirate expiry times and key lengths for CA's vs. clients, for example), so that you don't need to worry about stuff like ciphers, key sizes, etc.
 
-The principle we're following is secure by default, too simple to get it wrong, and making it so quick and easy so that you won't just avoid doing it at all.
+The principle we're following is secure by default, too simple to get it wrong, and making it so quick and easy so you'll enjoy using it, and find it better to do things correctly, rather than throwing together your own custom web server config with no TLS, for example.
 
 
 ## Quickstart Example
