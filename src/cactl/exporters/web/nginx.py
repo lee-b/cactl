@@ -35,22 +35,32 @@ class NginxExporter(Exporter):
         shutil.copy(server_cert.path, new_cert_path)
         shutil.copy(key.path, new_key_path)
 
-        # Generate and write the Nginx configuration
-        config = self._generate_nginx_config(entity_name, new_cert_path, new_key_path, cert_chain)
-        config_path = nginx_dir / f"{entity_name}_nginx.conf"
-        self._write_file(config_path, config)
-
         # Write the certificate chain file
         chain_file = nginx_dir / f"{entity_name}_cert_chain.pem"
         self._write_cert_chain(chain_file, cert_chain)
+
+        # Generate and write the Nginx configuration
+        config = self._generate_nginx_config(entity_name, new_cert_path, new_key_path, chain_file)
+        config_path = nginx_dir / f"{entity_name}_nginx.conf"
+        self._write_file(config_path, config)
+
+        # Generate and write a sample HTML file
+        html_content = self._generate_sample_html(entity_name)
+        html_path = nginx_dir / "index.html"
+        self._write_file(html_path, html_content)
 
         print(f"Nginx configuration files exported to: {nginx_dir}")
         print(f"  Configuration file: {config_path}")
         print(f"  Certificate chain: {chain_file}")
         print(f"  Server certificate: {new_cert_path}")
         print(f"  Private key: {new_key_path}")
+        print(f"  Sample HTML file: {html_path}")
+        print("\nTo use this configuration:")
+        print(f"1. Copy the contents of {nginx_dir} to your Nginx server.")
+        print(f"2. Update your main Nginx configuration to include {config_path}")
+        print("3. Restart Nginx to apply the changes.")
 
-    def _generate_nginx_config(self, server_name: str, cert_path: Path, key_path: Path, cert_chain: List[Cert]) -> str:
+    def _generate_nginx_config(self, server_name: str, cert_path: Path, key_path: Path, chain_path: Path) -> str:
         config = f"""
 server {{
     listen 443 ssl;
@@ -58,6 +68,7 @@ server {{
 
     ssl_certificate {cert_path};
     ssl_certificate_key {key_path};
+    ssl_trusted_certificate {chain_path};
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
@@ -70,9 +81,6 @@ server {{
     ssl_stapling on;
     ssl_stapling_verify on;
 
-    # Add intermediate certificates to the chain
-    ssl_trusted_certificate {self._get_chain_path(cert_chain)};
-
     # HSTS (optional, but recommended)
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
 
@@ -81,10 +89,11 @@ server {{
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
 
-    # Your website configuration goes here
+    root /var/www/html/{server_name};
+    index index.html;
+
     location / {{
-        root /var/www/html;
-        index index.html;
+        try_files $uri $uri/ =404;
     }}
 }}
 
@@ -95,13 +104,6 @@ server {{
 }}
 """
         return config
-
-    def _get_chain_path(self, cert_chain: List[Cert]) -> str:
-        # Assuming the first certificate in the chain is the server certificate,
-        # and we want to include all intermediate certificates
-        if len(cert_chain) > 1:
-            return " ".join(str(cert.path) for cert in cert_chain[1:])
-        return ""
 
     def _write_file(self, file_path: Path, content: str):
         with open(file_path, "w") as f:
@@ -116,3 +118,24 @@ server {{
     def _read_file_content(self, file_path: Path) -> str:
         with open(file_path, "r") as f:
             return f.read().strip()
+
+    def _generate_sample_html(self, server_name: str) -> str:
+        return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to {server_name}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }}
+        h1 {{ color: #333; }}
+    </style>
+</head>
+<body>
+    <h1>Welcome to {server_name}</h1>
+    <p>This is a sample page for your Nginx server with SSL/TLS configuration.</p>
+    <p>If you can see this page, your Nginx server is working correctly with the exported SSL/TLS certificates.</p>
+</body>
+</html>
+"""
