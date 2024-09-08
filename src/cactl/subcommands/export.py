@@ -3,6 +3,7 @@ from argparse import _SubParsersAction, Namespace
 from typing import Sequence
 from pathlib import Path
 
+from ..backend import Backend
 from ..db import DB
 from ..exporter import Exporter
 from ..subcommand import Subcommand
@@ -23,7 +24,7 @@ class ExportSubcommand(Subcommand):
         subcmd.add_argument("exporter", type=str, choices=[str(ex) for ex in self._exporters])
         subcmd.add_argument("target_path", type=Path)
 
-    def run(self, ns: Namespace, db: DB) -> int:
+    def run(self, ns: Namespace, db: DB, backend: Backend) -> int:
         exporter = next((ex for ex in self._exporters if ex.name() == ns.target), None)
 
         if not exporter:

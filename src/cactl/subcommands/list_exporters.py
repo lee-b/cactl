@@ -3,6 +3,7 @@ from argparse import _SubParsersAction, Namespace
 from typing import Sequence
 from pathlib import Path
 
+from ..backend import Backend
 from ..db import DB
 from ..exporter import Exporter
 from ..subcommand import Subcommand
@@ -19,7 +20,7 @@ class ListExportersSubcommand(Subcommand):
         subcmd = subparsers.add_parser("ls-exporters", help="List known exporters")
         subcmd.set_defaults(func=self.run)
 
-    def run(self, ns: Namespace, db: DB) -> int:
+    def run(self, ns: Namespace, db: DB, backend: Backend) -> int:
         for ex in self._exporters:
             print(ex.name())
 

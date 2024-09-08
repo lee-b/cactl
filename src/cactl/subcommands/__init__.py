@@ -1,9 +1,11 @@
 import logging
+from argparse import ArgumentParser
 from typing import List, Sequence
 
 from ..subcommand import Subcommand
 from ..exporter import Exporter
 
+from .help import HelpSubcommand
 from .new_root_ca import NewRootCASubcommand
 from .new_intermediate_ca import NewIntermediateCASubcommand
 from .new_client import NewClientSubcommand
@@ -13,14 +15,19 @@ from .list import ListSubcommand
 from .list_exporters import ListExportersSubcommand
 
 
-def build_subcommands(exporters: Sequence[Exporter]) -> List[Subcommand]:
+def build_subcommands(exporters: Sequence[Exporter], parser: ArgumentParser) -> List[Subcommand]:
     subcommands = [
-        ListSubcommand(),
+        HelpSubcommand(parser),
+        ListExportersSubcommand(exporters),
+
         NewRootCASubcommand(),
         NewIntermediateCASubcommand(),
-        NewClientSubcommand(),
         NewServerSubcommand(),
+
+        ListSubcommand(),
+
+        NewClientSubcommand(),
+
         ExportSubcommand(exporters),
-        ListExportersSubcommand(exporters),
     ]
     return subcommands

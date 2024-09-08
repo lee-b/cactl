@@ -1,5 +1,6 @@
 from argparse import _SubParsersAction, Namespace
 
+from ..backend import Backend
 from ..db import DB
 from ..subcommand import Subcommand
 
@@ -12,6 +13,6 @@ class NewClientSubcommand(Subcommand):
         subcmd.add_argument("--with-intermediate-ca", type=str)
         subcmd.add_argument("client_name", type=str)
 
-    def run(self, ns: Namespace, db: DB) -> int:
+    def run(self, ns: Namespace, db: DB, backend: Backend) -> int:
         print("(create new client here)")
         return 0
