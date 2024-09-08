@@ -44,11 +44,6 @@ class NginxExporter(Exporter):
         config_path = nginx_dir / f"{entity_name}_nginx.conf"
         self._write_file(config_path, config)
 
-        # Generate and write a sample HTML file
-        html_content = self._generate_sample_html(entity_name)
-        html_path = nginx_dir / "index.html"
-        self._write_file(html_path, html_content)
-
         print(f"Nginx configuration files exported to: {nginx_dir}")
         print(f"  Configuration file: {config_path}")
         print(f"  Certificate chain: {chain_file}")
@@ -118,24 +113,3 @@ server {{
     def _read_file_content(self, file_path: Path) -> str:
         with open(file_path, "r") as f:
             return f.read().strip()
-
-    def _generate_sample_html(self, server_name: str) -> str:
-        return f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to {server_name}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }}
-        h1 {{ color: #333; }}
-    </style>
-</head>
-<body>
-    <h1>Welcome to {server_name}</h1>
-    <p>This is a sample page for your Nginx server with SSL/TLS configuration.</p>
-    <p>If you can see this page, your Nginx server is working correctly with the exported SSL/TLS certificates.</p>
-</body>
-</html>
-"""
