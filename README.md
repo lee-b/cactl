@@ -44,7 +44,7 @@ To build install `cactl` from scratch, make sure you have Poetry installed, then
 
 ## License
 
-Aferro GPL, version 3 only.  See LICENSE for the full text of that.
+GNU Affero General Public License, version 3 only.  See LICENSE for the full text of that.
 
 The LICENSE file is overrides anything I say here, but the gist is essentially that you can use this any way you like, except for trying to profit from it in weird, sneaky, one-sided ways.
 
