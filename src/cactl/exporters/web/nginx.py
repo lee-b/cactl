@@ -3,7 +3,7 @@ from typing import List
 
 from ...exporter import Exporter
 from ...db import DB
-from ...crypto import Cert, CertPurpose
+from ...crypto import Cert, CertPurpose, Key
 
 
 class NginxExporter(Exporter):
@@ -35,7 +35,7 @@ class NginxExporter(Exporter):
 
         print(f"Nginx configuration exported to: {config_path}")
 
-    def _generate_nginx_config(self, server_name: str, server_cert: Cert, key: 'Key', cert_chain: List[Cert]) -> str:
+    def _generate_nginx_config(self, server_name: str, server_cert: Cert, key: Key, cert_chain: List[Cert]) -> str:
         config = f"""
 server {{
     listen 443 ssl;
