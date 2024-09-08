@@ -24,13 +24,24 @@ class NginxExporter(Exporter):
         if not key:
             raise ValueError(f"Private key not found for certificate '{server_cert.id}'")
 
+        # Create a directory for the Nginx files
+        nginx_dir = target_path / f"{entity_name}_nginx"
+        nginx_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate and write the Nginx configuration
         config = self._generate_nginx_config(entity_name, server_cert, key, cert_chain)
+        config_path = nginx_dir / f"{entity_name}_nginx.conf"
+        self._write_file(config_path, config)
 
-        config_path = target_path / f"{entity_name}_nginx.conf"
-        with open(config_path, "w") as f:
-            f.write(config)
+        # Write the certificate chain file
+        chain_file = nginx_dir / f"{entity_name}_cert_chain.pem"
+        self._write_cert_chain(chain_file, cert_chain)
 
-        print(f"Nginx configuration exported to: {config_path}")
+        print(f"Nginx configuration files exported to: {nginx_dir}")
+        print(f"  Configuration file: {config_path}")
+        print(f"  Certificate chain: {chain_file}")
+        print(f"  Server certificate: {server_cert.path}")
+        print(f"  Private key: {key.path}")
 
     def _generate_nginx_config(self, server_name: str, server_cert: Cert, key: Key, cert_chain: List[Cert]) -> str:
         config = f"""
@@ -84,3 +95,17 @@ server {{
         if len(cert_chain) > 1:
             return " ".join(str(cert.path) for cert in cert_chain[1:])
         return ""
+
+    def _write_file(self, file_path: Path, content: str):
+        with open(file_path, "w") as f:
+            f.write(content)
+
+    def _write_cert_chain(self, output_file: Path, cert_chain):
+        pem_content = ""
+        for cert in cert_chain:
+            pem_content += self._read_file_content(cert.path) + "\n"
+        self._write_file(output_file, pem_content.strip())
+
+    def _read_file_content(self, file_path: Path) -> str:
+        with open(file_path, "r") as f:
+            return f.read().strip()
