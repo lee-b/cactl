@@ -26,26 +26,43 @@ class OpenVPNServerExporter(Exporter):
 
         ca_cert = cert_chain[-1]  # The last certificate in the chain is the root CA
 
-        config = self._generate_openvpn_config(entity_name, server_cert, server_key, ca_cert)
+        # Create a directory for the OpenVPN server files
+        openvpn_dir = target_path / f"{entity_name}_openvpn_server"
+        openvpn_dir.mkdir(parents=True, exist_ok=True)
 
-        config_path = target_path / f"{entity_name}_openvpn_server.conf"
-        with open(config_path, "w") as f:
-            f.write(config)
+        # Write the certificate and key files
+        self._write_file(openvpn_dir / "server.crt", self._read_file_content(server_cert.path))
+        self._write_file(openvpn_dir / "server.key", self._read_file_content(server_key.path))
+        self._write_file(openvpn_dir / "ca.crt", self._read_file_content(ca_cert.path))
 
-        print(f"OpenVPN server configuration exported to: {config_path}")
+        # Generate and write the Diffie-Hellman parameters
+        dh_params = self._generate_dh_params()
+        self._write_file(openvpn_dir / "dh2048.pem", dh_params)
 
-    def _generate_openvpn_config(self, server_name: str, server_cert: Cert, server_key: Key, ca_cert: Cert) -> str:
+        # Generate and write the TLS auth key
+        tls_auth_key = self._generate_tls_auth_key()
+        self._write_file(openvpn_dir / "ta.key", tls_auth_key)
+
+        config = self._generate_openvpn_config(entity_name, openvpn_dir)
+
+        config_path = openvpn_dir / f"{entity_name}_server.conf"
+        self._write_file(config_path, config)
+
+        print(f"OpenVPN server files exported to: {openvpn_dir}")
+        print(f"OpenVPN server configuration: {config_path}")
+
+    def _generate_openvpn_config(self, server_name: str, openvpn_dir: Path) -> str:
         config = f"""# OpenVPN Server Configuration for {server_name}
 
 port 1194
 proto udp
 dev tun
 
-ca {ca_cert.path}
-cert {server_cert.path}
-key {server_key.path}
+ca {openvpn_dir}/ca.crt
+cert {openvpn_dir}/server.crt
+key {openvpn_dir}/server.key
 
-dh dh2048.pem  # You need to generate this file separately with: openssl dhparam -out dh2048.pem 2048
+dh {openvpn_dir}/dh2048.pem
 
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt
@@ -67,8 +84,7 @@ persist-tun
 status openvpn-status.log
 verb 3
 
-# Uncomment this line to enable the use of a preshared key
-# tls-auth ta.key 0  # You need to generate this key file separately
+tls-auth {openvpn_dir}/ta.key 0
 
 # Uncomment these lines if you want to enable client-to-client communication
 # client-to-client
@@ -85,3 +101,17 @@ verb 3
     def _read_file_content(self, file_path: Path) -> str:
         with open(file_path, "r") as f:
             return f.read().strip()
+
+    def _write_file(self, file_path: Path, content: str):
+        with open(file_path, "w") as f:
+            f.write(content)
+
+    def _generate_dh_params(self) -> str:
+        # This is a placeholder. In a real implementation, you would use a cryptographic
+        # library or call an external command to generate Diffie-Hellman parameters.
+        return "# Placeholder for Diffie-Hellman parameters\n# Generate with: openssl dhparam -out dh2048.pem 2048"
+
+    def _generate_tls_auth_key(self) -> str:
+        # This is a placeholder. In a real implementation, you would use a cryptographic
+        # library or call an external command to generate a TLS auth key.
+        return "# Placeholder for TLS auth key\n# Generate with: openvpn --genkey --secret ta.key"
