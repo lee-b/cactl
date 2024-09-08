@@ -29,8 +29,8 @@ class Entity(BaseModel):
     name: str
     can_sign: bool
     min_strength: int
-    key_ids: List[str] = Field(default_factory=list)
-    cert_ids: List[str] = Field(default_factory=list)
+    keys: List[Key] = Field(default_factory=list)
+    certs: List[Cert] = Field(default_factory=list)
     parent_id: Optional[str] = None
 
 class DB:
@@ -48,6 +48,7 @@ class DB:
             with open(self._db_file, "r") as f:
                 self._data = json.load(f)
             self._validate_version()
+            self._convert_ids_to_objects()
             logger.info(f"Loaded database from {self._db_file}")
         else:
             self._data = {
@@ -69,9 +70,22 @@ class DB:
         if db_version != self.CURRENT_VERSION:
             raise ValueError(f"Unsupported database version: {db_version}. Expected: {self.CURRENT_VERSION}")
 
+    def _convert_ids_to_objects(self):
+        for entity_data in self._data["entities"].values():
+            entity_data["keys"] = [self._data["keys"][key_id] for key_id in entity_data["key_ids"]]
+            entity_data["certs"] = [self._data["certs"][cert_id] for cert_id in entity_data["cert_ids"]]
+            del entity_data["key_ids"]
+            del entity_data["cert_ids"]
+
     def _save_db(self):
+        save_data = self._data.copy()
+        for entity_data in save_data["entities"].values():
+            entity_data["key_ids"] = [key.id for key in entity_data["keys"]]
+            entity_data["cert_ids"] = [cert.id for cert in entity_data["certs"]]
+            del entity_data["keys"]
+            del entity_data["certs"]
         with open(self._db_file, "w") as f:
-            json.dump(self._data, f, indent=2, default=str)
+            json.dump(save_data, f, indent=2, default=str)
 
     def get_CAs(self) -> List[str]:
         return self._data["root_cas"]
@@ -108,9 +122,8 @@ class DB:
                 break
 
             entity = Entity.parse_obj(entity_data)
-            cert = self.get_cert_by_id(entity.cert_ids[0])  # Assuming the first cert is the main one
-            if cert:
-                chain.append(cert)
+            if entity.certs:
+                chain.append(entity.certs[0])  # Assuming the first cert is the main one
 
             if entity.can_sign:
                 current_entity_id = entity.parent_id
@@ -152,8 +165,12 @@ class DB:
     def add_email(self, email: Entity):
         self.add_entity(email, "emails")
 
-    def add_key(self, key: Key):
+    def add_key(self, key: Key, entity_id: str):
         self._data["keys"][key.id] = key.dict()
+        entity = self.get_entity_by_id(entity_id)
+        if entity:
+            entity.keys.append(key)
+            self._data["entities"][entity_id] = entity.dict()
         self._save_db()
 
     def get_key_by_id(self, key_id: str) -> Optional[Key]:
@@ -162,8 +179,12 @@ class DB:
             return Key.parse_obj(key_data)
         return None
 
-    def add_cert(self, cert: Cert):
+    def add_cert(self, cert: Cert, entity_id: str):
         self._data["certs"][cert.id] = cert.dict()
+        entity = self.get_entity_by_id(entity_id)
+        if entity:
+            entity.certs.append(cert)
+            self._data["entities"][entity_id] = entity.dict()
         self._save_db()
 
     def get_cert_by_id(self, cert_id: str) -> Optional[Cert]:
