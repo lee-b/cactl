@@ -31,8 +31,8 @@ def init_logging(conf: argparse.Namespace):
         logging.basicConfig(level=logging.INFO)
 
 
-def get_db(conf: argparse.Namespace) -> DB:
-    return DB(conf.db_path)
+def get_db(conf: argparse.Namespace, backend) -> DB:
+    return DB(conf.db_path, backend)
 
 
 def main():
@@ -45,9 +45,9 @@ def main():
 
     init_logging(conf)
 
-    db = get_db(conf)
-
     backend = get_backend(conf)
+
+    db = get_db(conf, backend)
 
     subcmd_func = conf.func
     return subcmd_func(conf, db, backend)
