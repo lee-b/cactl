@@ -2,18 +2,15 @@
 
 ==== WIP ===
 
-A simple command line tool to create and control a local certificate authority, held in local files. No webservers, no weird error-prone openssl commands, just a simple tool to create and manage keys
-and certificates for your systems.
+A simple command line tool to create and control a local certificate authority, held in local files. No heavyweight CA webserver deployments, no weird error-prone openssl commands, just a simple tool to create and manage keys and certificates for your systems.
 
-This works at a high level. Instead of creating certs, you define entities. Then you export the necessary
-configs for those entities. At that point, the necessary certs are created, if they don't already exist. If
-they do exist, and expiry is within a certain amount of time, they are renewed automatically.
+This works at a high level. Instead of creating certs, you define entities. Then you export the necessary configs for those entities. At that point, the necessary certs are created, if they don't already exist. If they do exist, and expiry is within a certain amount of time, they are renewed automatically.
 
 This gives you simple, declarative idempotent ops, regardless of if/when a cert has already been generated, when it was generated and so on.
 
-We try to "do the right thing"(tm) as far as possible, so that you don't need to worry about stuff like
-ciphers, key sizes, etc.  The principle we're following is secure by default, without getting in your way.
+We try to "do the right thing"(tm) as far as possible, so that you don't need to worry about stuff like ciphers, key sizes, etc.  The principle we're following is secure by default, without getting in your way.
 
+This is along the lines of easyrsa and cfssl, but much higher level, lower cognitive load, and simpler to get right.
 
 ## Quickstart Example
 
